@@ -123,8 +123,10 @@ const StudentInfoPage = ({ route }) => {
             placeholder="Experience"
           />
         </View>
-        <Button title="Add Student Info" onPress={addStudentInfo} />
-        <Button title="Team Formation" onPress={formTeams} />
+        <View style={styles.buttonRow}>
+          <Button title="Add Student Info" onPress={addStudentInfo} />
+          <Button title="Team Formation" onPress={formTeams} />
+        </View>
         <View>
           <Text style={styles.teamHeader}>Formed Teams:</Text>
           {formedTeams.map((team, teamIndex) => (
@@ -144,8 +146,9 @@ const StudentInfoPage = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    padding: 60,
     backgroundColor: '#fff',
+    justifyContent: 'center', // Center content vertically
   },
   fieldRow: {
     flexDirection: 'row',
@@ -161,12 +164,17 @@ const styles = StyleSheet.create({
   input: {
     flex: 2,
     height: 40,
-    borderColor: 'gray',
+    borderColor: 'green',
     borderWidth: 1,
     paddingHorizontal: 10,
   },
-  teamHeader: {
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginTop: 20,
+  },
+  teamHeader: {
+    marginTop: 25,
     fontSize: 18,
     fontWeight: 'bold',
   },
