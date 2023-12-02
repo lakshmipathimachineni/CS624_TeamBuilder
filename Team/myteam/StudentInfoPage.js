@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, ScrollView, StyleSheet } from 'react-native';
+import { useAppContext } from './AppContext';
 
 const StudentInfoPage = ({ route }) => {
+  const { state, dispatch } = useAppContext();
   const [students, setStudents] = useState([]);
   const [studentInfo, setStudentInfo] = useState({
     name: '',
@@ -11,6 +13,7 @@ const StudentInfoPage = ({ route }) => {
     experience: '',
   });
   const [formedTeams, setFormedTeams] = useState([]);
+  const [displayedTeams, setDisplayedTeams] = useState(false);
 
   const handleInputChange = (name, value) => {
     setStudentInfo((prevInfo) => ({
@@ -27,7 +30,7 @@ const StudentInfoPage = ({ route }) => {
       studentInfo.country &&
       studentInfo.experience
     ) {
-      setStudents((prevStudents) => [...prevStudents, studentInfo]);
+      dispatch({ type: 'ADD_STUDENT', payload: studentInfo });
       setStudentInfo({
         name: '',
         email: '',
@@ -44,7 +47,7 @@ const StudentInfoPage = ({ route }) => {
     const teams = [];
     const countriesUsed = new Set();
 
-    students.forEach((student) => {
+    state.students.forEach((student) => {
       if (!countriesUsed.has(student.country)) {
         countriesUsed.add(student.country);
 
@@ -56,7 +59,7 @@ const StudentInfoPage = ({ route }) => {
         );
 
         otherCountries.forEach((country) => {
-          const studentFromOtherCountry = students.find(
+          const studentFromOtherCountry = state.students.find(
             (s) => s.country === country && !team.includes(s)
           );
 
@@ -73,6 +76,12 @@ const StudentInfoPage = ({ route }) => {
     });
 
     setFormedTeams(teams);
+    dispatch({ type: 'FORM_TEAMS', payload: teams });
+  };
+
+  const getTeamDetails = () => {
+    setDisplayedTeams(true);
+    
   };
 
   return (
@@ -126,14 +135,16 @@ const StudentInfoPage = ({ route }) => {
         <View style={styles.buttonRow}>
           <Button title="Add Student Info" onPress={addStudentInfo} />
           <Button title="Team Formation" onPress={formTeams} />
+          <Button title="Get Team Details" onPress={getTeamDetails} />
         </View>
         <View>
-          <Text style={styles.teamHeader}>Formed Teams:</Text>
-          {formedTeams.map((team, teamIndex) => (
-            <View key={teamIndex} style={styles.teamContainer}>
-              <Text style={styles.teamText}>{`Team ${teamIndex + 1}:`}</Text>
-              {team.map((teamMember, memberIndex) => (
-                <Text key={memberIndex} style={styles.teamText}>{`${teamMember.name} (${teamMember.country})`}</Text>
+        <Text style={styles.teamHeader}>Formed Teams:</Text>
+          {displayedTeams &&
+            formedTeams.map((team, teamIndex) => (
+              <View key={teamIndex} style={styles.teamContainer}>
+                <Text style={styles.teamText}>{`Team ${teamIndex + 1}:`}</Text>
+                {team.map((teamMember, memberIndex) => (
+                  <Text key={memberIndex} style={styles.teamText}>{`${teamMember.name} (${teamMember.country})`}</Text>
               ))}
             </View>
           ))}
@@ -173,6 +184,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 20,
   },
+
+
   teamHeader: {
     marginTop: 25,
     fontSize: 18,
