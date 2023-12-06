@@ -1,10 +1,9 @@
+import { Alert, ScrollView, Text, TextInput, View, Button, StyleSheet } from 'react-native';
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, ScrollView, StyleSheet } from 'react-native';
 import { useAppContext } from './AppContext';
 
 const StudentInfoPage = ({ route }) => {
   const { state, dispatch } = useAppContext();
-  const [students, setStudents] = useState([]);
   const [studentInfo, setStudentInfo] = useState({
     name: '',
     email: '',
@@ -14,6 +13,7 @@ const StudentInfoPage = ({ route }) => {
   });
   const [formedTeams, setFormedTeams] = useState([]);
   const [displayedTeams, setDisplayedTeams] = useState(false);
+  const [displayStudentsList, setDisplayStudentsList] = useState(false);
 
   const handleInputChange = (name, value) => {
     setStudentInfo((prevInfo) => ({
@@ -30,58 +30,91 @@ const StudentInfoPage = ({ route }) => {
       studentInfo.country &&
       studentInfo.experience
     ) {
-      dispatch({ type: 'ADD_STUDENT', payload: studentInfo });
-      setStudentInfo({
-        name: '',
-        email: '',
-        id: '',
-        country: '',
-        experience: '',
-      });
+      const isIdTaken = state.students.some((student) => student.id === studentInfo.id);
+
+      if (isIdTaken) {
+        Alert.alert('Student ID is already taken. Please choose a unique ID.');
+      } else {
+        dispatch({ type: 'ADD_STUDENT', payload: studentInfo });
+        setStudentInfo({
+          name: '',
+          email: '',
+          id: '',
+          country: '',
+          experience: '',
+        });
+      }
     } else {
-      alert('Please fill in all details.');
+      Alert.alert('Please fill in all details.');
     }
   };
 
   const formTeams = () => {
     const teams = [];
-    const countriesUsed = new Set();
+    const studentsAssigned = new Set();
 
+    const studentsByCountry = {};
     state.students.forEach((student) => {
-      if (!countriesUsed.has(student.country)) {
-        countriesUsed.add(student.country);
-
-        const team = [];
-        team.push(student);
-
-        const otherCountries = Array.from(countriesUsed.values()).filter(
-          (country) => country !== student.country
-        );
-
-        otherCountries.forEach((country) => {
-          const studentFromOtherCountry = state.students.find(
-            (s) => s.country === country && !team.includes(s)
-          );
-
-          if (studentFromOtherCountry) {
-            team.push(studentFromOtherCountry);
-            countriesUsed.add(country);
-          }
-        });
-
-        if (team.length >= 2) {
-          teams.push(team);
-        }
+      if (!studentsByCountry[student.country]) {
+        studentsByCountry[student.country] = [];
       }
+      studentsByCountry[student.country].push(student);
     });
+
+    Object.values(studentsByCountry).forEach((countryStudents) => {
+      const team = [];
+      const experiencesUsed = new Set();
+
+      countryStudents.sort((a, b) => b.experience - a.experience);
+
+      countryStudents.forEach((student) => {
+        if (
+          !studentsAssigned.has(student.id) &&
+          team.length < 4 &&
+          !experiencesUsed.has(student.experience)
+        ) {
+          team.push(student);
+          studentsAssigned.add(student.id);
+          experiencesUsed.add(student.experience);
+        }
+
+        if (team.length >= 2 && (team.length === 4 || experiencesUsed.size === 2)) {
+          teams.push([...team]);
+          team.length = 0;
+          experiencesUsed.clear();
+        }
+      });
+    });
+
+    const remainingStudents = state.students.filter((student) => !studentsAssigned.has(student.id));
+
+    const shuffledRemainingStudents = shuffleArray(remainingStudents);
+    while (shuffledRemainingStudents.length > 0) {
+      for (let i = 0; i < teams.length && shuffledRemainingStudents.length > 0; i++) {
+        teams[i].push(shuffledRemainingStudents.pop());
+      }
+    }
 
     setFormedTeams(teams);
     dispatch({ type: 'FORM_TEAMS', payload: teams });
+
+    Alert.alert('Team Formation Completed', 'The teams have been successfully formed!');
+  };
+
+  const shuffleArray = (array) => {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
   };
 
   const getTeamDetails = () => {
     setDisplayedTeams(true);
-    
+  };
+
+  const getStudentsList = () => {
+    setDisplayStudentsList(true);
   };
 
   return (
@@ -133,21 +166,41 @@ const StudentInfoPage = ({ route }) => {
           />
         </View>
         <View style={styles.buttonRow}>
-          <Button title="Add Student Info" onPress={addStudentInfo} />
-          <Button title="Team Formation" onPress={formTeams} />
-          <Button title="Get Team Details" onPress={getTeamDetails} />
+          <Button title="Add Student Info" onPress={addStudentInfo} style={styles.button} />
+          <Button title="Team Formation" onPress={formTeams} style={styles.button} />
+          <Button title="Get Team Details" onPress={getTeamDetails} style={styles.button} />
+          <Button title="Students List" onPress={getStudentsList} style={styles.button} />
         </View>
+
+        {displayStudentsList && (
+          <View>
+            <Text style={styles.teamHeader}>Students List:</Text>
+            {state.students.map((student, index) => (
+              <View key={index} style={styles.teamContainer}>
+                <Text style={styles.teamText}>{`Name: ${student.name}`}</Text>
+                <Text style={styles.teamText}>{`Email: ${student.email}`}</Text>
+                <Text style={styles.teamText}>{`ID: ${student.id}`}</Text>
+                <Text style={styles.teamText}>{`Country: ${student.country}`}</Text>
+                <Text style={styles.teamText}>{`Experience: ${student.experience}`}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         <View>
-        <Text style={styles.teamHeader}>Formed Teams:</Text>
+          <Text style={styles.teamHeader}>Formed Teams:</Text>
           {displayedTeams &&
             formedTeams.map((team, teamIndex) => (
               <View key={teamIndex} style={styles.teamContainer}>
                 <Text style={styles.teamText}>{`Team ${teamIndex + 1}:`}</Text>
                 {team.map((teamMember, memberIndex) => (
-                  <Text key={memberIndex} style={styles.teamText}>{`${teamMember.name} (${teamMember.country})`}</Text>
-              ))}
-            </View>
-          ))}
+                  <Text
+                    key={memberIndex}
+                    style={styles.teamText}
+                  >{`${teamMember.name} (${teamMember.country})`}</Text>
+                ))}
+              </View>
+            ))}
         </View>
       </View>
     </ScrollView>
@@ -157,20 +210,22 @@ const StudentInfoPage = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 60,
+    padding: 20, // Adjusted padding for better spacing
     backgroundColor: '#fff',
     justifyContent: 'center', // Center content vertically
   },
   fieldRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 5,
   },
   fieldLabel: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginRight: 10,
+    marginRight: 1,
+    marginStart: 5,
     flex: 1,
+    minWidth: 80, // Set a minimum width for better alignment
   },
   input: {
     flex: 2,
@@ -178,14 +233,13 @@ const styles = StyleSheet.create({
     borderColor: 'green',
     borderWidth: 1,
     paddingHorizontal: 10,
+    minWidth: 200, // Set a minimum width for better alignment
   },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 20,
   },
-
-
   teamHeader: {
     marginTop: 25,
     fontSize: 18,
@@ -193,6 +247,9 @@ const styles = StyleSheet.create({
   },
   teamContainer: {
     marginBottom: 10,
+  },
+  button: {
+    marginRight: 10, // Adjust the value based on your preference
   },
   teamText: {
     fontSize: 16,
